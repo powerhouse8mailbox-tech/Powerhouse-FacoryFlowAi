@@ -4,16 +4,17 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "tsx server.ts",
+    "dev": "tsx backend/api-gateway/server.ts",
     "build": "vite build",
     "preview": "vite preview",
-    "start": "node server.ts",
+    "start": "tsx backend/api-gateway/server.ts",
     "clean": "rm -rf dist",
     "lint": "tsc --noEmit"
   },
   "dependencies": {
     "@fastify/jwt": "^10.0.0",
     "@fastify/middie": "^9.3.1",
+    "@fastify/websocket": "^11.2.0",
     "@google/genai": "^1.29.0",
     "@tailwindcss/vite": "^4.1.14",
     "@vitejs/plugin-react": "^5.0.4",
@@ -23,6 +24,7 @@
     "fastify": "^5.8.4",
     "lucide-react": "^0.546.0",
     "motion": "^12.23.24",
+    "mqtt": "^5.15.1",
     "pg": "^8.20.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",

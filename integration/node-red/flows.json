@@ -1,0 +1,72 @@
+[
+    {
+        "id": "f6f2187d.f17ca8",
+        "type": "tab",
+        "label": "SCADA to Cloud",
+        "disabled": false,
+        "info": ""
+    },
+    {
+        "id": "inject_sim",
+        "type": "inject",
+        "z": "f6f2187d.f17ca8",
+        "name": "Simulate PLC Data",
+        "props": [
+            {
+                "p": "payload"
+            }
+        ],
+        "repeat": "5",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "",
+        "payload": "{\"machine_id\":\"CNC-01\",\"status\":\"running\",\"temperature\":65.5,\"vibration\":2.1,\"cycle_time\":12}",
+        "payloadType": "json",
+        "x": 190,
+        "y": 120,
+        "wires": [
+            [
+                "http_post"
+            ]
+        ]
+    },
+    {
+        "id": "http_post",
+        "type": "http request",
+        "z": "f6f2187d.f17ca8",
+        "name": "POST to API Gateway",
+        "method": "POST",
+        "ret": "obj",
+        "paytoqs": "ignore",
+        "url": "http://backend:3000/api/scada/data",
+        "tls": "",
+        "persist": false,
+        "proxy": "",
+        "authType": "bearer",
+        "x": 440,
+        "y": 120,
+        "wires": [
+            [
+                "debug_out"
+            ]
+        ]
+    },
+    {
+        "id": "debug_out",
+        "type": "debug",
+        "z": "f6f2187d.f17ca8",
+        "name": "Response",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "payload",
+        "targetType": "msg",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 670,
+        "y": 120,
+        "wires": []
+    }
+]

@@ -1,0 +1,47 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: factory_admin
+      POSTGRES_PASSWORD: securepassword
+      POSTGRES_DB: factoryflow
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ../../backend/config/schema.sql:/docker-entrypoint-initdb.d/schema.sql
+
+  mosquitto:
+    image: eclipse-mosquitto:2
+    ports:
+      - "1883:1883"
+      - "9001:9001"
+    volumes:
+      - ../../integration/event-bus/mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf
+
+  node-red:
+    image: nodered/node-red:latest
+    ports:
+      - "1880:1880"
+    volumes:
+      - nodered_data:/data
+
+  backend:
+    build: 
+      context: ../../
+      dockerfile: deployment/docker/Dockerfiles/backend.Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      - DATABASE_URL=postgres://factory_admin:securepassword@postgres:5432/factoryflow
+      - MQTT_URL=mqtt://mosquitto:1883
+      - JWT_SECRET=supersecret
+    depends_on:
+      - postgres
+      - mosquitto
+
+volumes:
+  pgdata:
+  nodered_data:

@@ -1,5 +1,5 @@
 import { motion } from 'motion/react';
-import { BrainCircuit, ShieldAlert, TrendingUp } from 'lucide-react';
+import { BrainCircuit, ShieldAlert, TrendingUp, AlertTriangle } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 const AI_PREDICTIONS = [

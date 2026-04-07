@@ -1,0 +1,39 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database for Apache OFBiz
+  ofbiz-db:
+    image: postgres:13
+    environment:
+      POSTGRES_DB: ofbiz
+      POSTGRES_USER: ofbiz
+      POSTGRES_PASSWORD: ofbiz_password
+    volumes:
+      - ofbiz-db-data:/var/lib/postgresql/data
+      - ../database/init.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "5433:5432"
+    restart: unless-stopped
+
+  # Apache OFBiz ERP Application
+  # Note: Using a standard openjdk image. In a real deployment, 
+  # you would build an image from the OFBiz source or use a pre-built OFBiz image.
+  ofbiz-erp:
+    image: openjdk:11-jdk-slim
+    environment:
+      - DB_HOST=ofbiz-db
+      - DB_PORT=5432
+      - DB_USER=ofbiz
+      - DB_PASSWORD=ofbiz_password
+    ports:
+      - "8443:8443" # HTTPS
+      - "8080:8080" # HTTP
+    depends_on:
+      - ofbiz-db
+    restart: unless-stopped
+    # command: ./gradlew ofbiz
+    # volumes:
+    #   - ./ofbiz-framework:/usr/src/ofbiz
+
+volumes:
+  ofbiz-db-data:

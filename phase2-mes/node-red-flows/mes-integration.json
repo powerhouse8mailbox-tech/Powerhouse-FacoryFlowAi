@@ -1,0 +1,177 @@
+[
+    {
+        "id": "mes-flow-1",
+        "type": "tab",
+        "label": "MES Integration",
+        "disabled": false,
+        "info": ""
+    },
+    {
+        "id": "scada-input",
+        "type": "http in",
+        "z": "mes-flow-1",
+        "name": "Receive SCADA Data",
+        "url": "/scada-data",
+        "method": "post",
+        "upload": false,
+        "swaggerDoc": "",
+        "x": 150,
+        "y": 100,
+        "wires": [
+            [
+                "http-response",
+                "map-to-mes"
+            ]
+        ]
+    },
+    {
+        "id": "http-response",
+        "type": "http response",
+        "z": "mes-flow-1",
+        "name": "ACK",
+        "statusCode": "200",
+        "headers": {},
+        "x": 350,
+        "y": 60,
+        "wires": []
+    },
+    {
+        "id": "map-to-mes",
+        "type": "function",
+        "z": "mes-flow-1",
+        "name": "Map to MES Format",
+        "func": "const scada = msg.payload;\n\n// Only process if a cycle was completed (e.g., status is running and count increased)\n// In a real scenario, you'd track previous count in flow context.\n\n// Map to MES Entity\nmsg.payload = {\n    \"machine_id\": scada.machine_id,\n    \"work_order_id\": global.get(\"current_wo\") || \"WO_1001\",\n    \"status\": \"completed\",\n    \"cycle_time\": scada.cycle_time\n};\n\n// Set retry counter\nmsg.retries = 0;\n\nreturn msg;",
+        "outputs": 1,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 370,
+        "y": 140,
+        "wires": [
+            [
+                "post-to-qcadoo"
+            ]
+        ]
+    },
+    {
+        "id": "post-to-qcadoo",
+        "type": "http request",
+        "z": "mes-flow-1",
+        "name": "POST /api/production-records",
+        "method": "POST",
+        "ret": "obj",
+        "paytoqs": "ignore",
+        "url": "http://qcadoo-mes:8080/api/production-records",
+        "tls": "",
+        "persist": false,
+        "proxy": "",
+        "authType": "basic",
+        "senderr": false,
+        "x": 650,
+        "y": 140,
+        "wires": [
+            [
+                "log-success"
+            ]
+        ]
+    },
+    {
+        "id": "catch-error",
+        "type": "catch",
+        "z": "mes-flow-1",
+        "name": "Catch API Errors",
+        "scope": [
+            "post-to-qcadoo"
+        ],
+        "uncaught": false,
+        "x": 140,
+        "y": 260,
+        "wires": [
+            [
+                "retry-logic"
+            ]
+        ]
+    },
+    {
+        "id": "retry-logic",
+        "type": "function",
+        "z": "mes-flow-1",
+        "name": "Retry Logic (Max 3)",
+        "func": "msg.retries = (msg.retries || 0) + 1;\n\nif (msg.retries <= 3) {\n    node.warn(`MES API failed. Retrying attempt ${msg.retries}/3 in 5 seconds...`);\n    return [msg, null];\n} else {\n    node.error(\"MES API failed after 3 retries. Logging to dead-letter queue.\");\n    return [null, msg];\n}",
+        "outputs": 2,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 350,
+        "y": 260,
+        "wires": [
+            [
+                "delay-retry"
+            ],
+            [
+                "log-dead-letter"
+            ]
+        ]
+    },
+    {
+        "id": "delay-retry",
+        "type": "delay",
+        "z": "mes-flow-1",
+        "name": "Wait 5s",
+        "pauseType": "delay",
+        "timeout": "5",
+        "timeoutUnits": "seconds",
+        "rate": "1",
+        "nbRateUnits": "1",
+        "rateUnits": "second",
+        "randomFirst": "1",
+        "randomLast": "5",
+        "randomUnits": "seconds",
+        "drop": false,
+        "allowrate": false,
+        "outputs": 1,
+        "x": 560,
+        "y": 240,
+        "wires": [
+            [
+                "post-to-qcadoo"
+            ]
+        ]
+    },
+    {
+        "id": "log-success",
+        "type": "debug",
+        "z": "mes-flow-1",
+        "name": "Success Log",
+        "active": true,
+        "tosidebar": true,
+        "console": true,
+        "tostatus": false,
+        "complete": "payload",
+        "targetType": "msg",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 910,
+        "y": 140,
+        "wires": []
+    },
+    {
+        "id": "log-dead-letter",
+        "type": "file",
+        "z": "mes-flow-1",
+        "name": "Write to Dead Letter",
+        "filename": "/data/dead-letter-queue.log",
+        "filenameType": "str",
+        "appendNewline": true,
+        "createDir": true,
+        "overwriteFile": "false",
+        "encoding": "none",
+        "x": 610,
+        "y": 300,
+        "wires": [
+            []
+        ]
+    }
+]

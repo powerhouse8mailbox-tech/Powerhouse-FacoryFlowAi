@@ -1,0 +1,243 @@
+[
+    {
+        "id": "erp-flow-1",
+        "type": "tab",
+        "label": "ERP Integration",
+        "disabled": false,
+        "info": ""
+    },
+    {
+        "id": "mes-webhook",
+        "type": "http in",
+        "z": "erp-flow-1",
+        "name": "Receive MES Completion",
+        "url": "/mes/work-order-complete",
+        "method": "post",
+        "upload": false,
+        "swaggerDoc": "",
+        "x": 160,
+        "y": 100,
+        "wires": [
+            [
+                "http-ack",
+                "process-inventory",
+                "process-cost"
+            ]
+        ]
+    },
+    {
+        "id": "http-ack",
+        "type": "http response",
+        "z": "erp-flow-1",
+        "name": "ACK 200",
+        "statusCode": "200",
+        "headers": {},
+        "x": 380,
+        "y": 60,
+        "wires": []
+    },
+    {
+        "id": "process-inventory",
+        "type": "function",
+        "z": "erp-flow-1",
+        "name": "Map Inventory Update",
+        "func": "const mesData = msg.payload;\n\n// 1. Increase Finished Goods\nlet fgMsg = {\n    payload: {\n        \"product_id\": mesData.product_id,\n        \"quantity\": mesData.quantity_produced,\n        \"type\": \"finished_goods\",\n        \"warehouse_id\": \"WH-MAIN\",\n        \"action\": \"increase\"\n    }\n};\n\n// 2. Decrease Raw Materials (BOM explosion simulation)\nlet rmMsg = {\n    payload: {\n        \"product_id\": \"RAW_MAT_X\",\n        \"quantity\": mesData.quantity_produced * 2, // 2 units of RM per FG\n        \"type\": \"raw_material\",\n        \"warehouse_id\": \"WH-RAW\",\n        \"action\": \"decrease\"\n    }\n};\n\nreturn [fgMsg, rmMsg];",
+        "outputs": 2,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 400,
+        "y": 140,
+        "wires": [
+            [
+                "api-inventory-update"
+            ],
+            [
+                "api-inventory-update",
+                "check-threshold"
+            ]
+        ]
+    },
+    {
+        "id": "api-inventory-update",
+        "type": "http request",
+        "z": "erp-flow-1",
+        "name": "POST /api/inventory/update",
+        "method": "POST",
+        "ret": "obj",
+        "paytoqs": "ignore",
+        "url": "http://ofbiz-erp:8080/api/inventory/update",
+        "tls": "",
+        "persist": false,
+        "proxy": "",
+        "authType": "bearer",
+        "senderr": false,
+        "x": 680,
+        "y": 120,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "check-threshold",
+        "type": "function",
+        "z": "erp-flow-1",
+        "name": "Check RM Threshold",
+        "func": "const rmData = msg.payload;\n\n// In a real scenario, we would query the ERP for current stock.\n// Here we simulate checking if stock < threshold.\n// If true, trigger procurement.\n\nlet currentStock = global.get(\"RAW_MAT_X_STOCK\") || 500;\ncurrentStock -= rmData.quantity;\nglobal.set(\"RAW_MAT_X_STOCK\", currentStock);\n\nif (currentStock < 100) {\n    msg.payload = {\n        \"product_id\": \"RAW_MAT_X\",\n        \"quantity\": 500, // Reorder quantity\n        \"supplier_id\": \"SUPPLIER_GLOBAL_INC\"\n    };\n    return msg;\n}\nreturn null;",
+        "outputs": 1,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 660,
+        "y": 180,
+        "wires": [
+            [
+                "api-purchase-request"
+            ]
+        ]
+    },
+    {
+        "id": "api-purchase-request",
+        "type": "http request",
+        "z": "erp-flow-1",
+        "name": "POST /api/purchase/request",
+        "method": "POST",
+        "ret": "obj",
+        "paytoqs": "ignore",
+        "url": "http://ofbiz-erp:8080/api/purchase/request",
+        "tls": "",
+        "persist": false,
+        "proxy": "",
+        "authType": "bearer",
+        "senderr": false,
+        "x": 900,
+        "y": 180,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "process-cost",
+        "type": "function",
+        "z": "erp-flow-1",
+        "name": "Calculate Production Cost",
+        "func": "const mesData = msg.payload;\n\n// Calculate costs based on MES data\nconst machineRate = 50.0; // $50/hr\nconst laborRate = 30.0;   // $30/hr\nconst materialUnitCost = 5.0; // $5/unit\n\nconst machineTimeHours = mesData.cycle_time / 3600;\n\nmsg.payload = {\n    \"work_order_id\": mesData.work_order_id,\n    \"product_id\": mesData.product_id,\n    \"quantity_produced\": mesData.quantity_produced,\n    \"machine_time_hours\": machineTimeHours,\n    \"labor_cost\": machineTimeHours * laborRate,\n    \"material_cost\": (mesData.quantity_produced * 2) * materialUnitCost\n};\n\nreturn msg;",
+        "outputs": 1,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 410,
+        "y": 240,
+        "wires": [
+            [
+                "api-production-cost"
+            ]
+        ]
+    },
+    {
+        "id": "api-production-cost",
+        "type": "http request",
+        "z": "erp-flow-1",
+        "name": "POST /api/production/cost",
+        "method": "POST",
+        "ret": "obj",
+        "paytoqs": "ignore",
+        "url": "http://ofbiz-erp:8080/api/production/cost",
+        "tls": "",
+        "persist": false,
+        "proxy": "",
+        "authType": "bearer",
+        "senderr": false,
+        "x": 680,
+        "y": 240,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "catch-erp-errors",
+        "type": "catch",
+        "z": "erp-flow-1",
+        "name": "Catch API Errors",
+        "scope": [
+            "api-inventory-update",
+            "api-purchase-request",
+            "api-production-cost"
+        ],
+        "uncaught": false,
+        "x": 140,
+        "y": 320,
+        "wires": [
+            [
+                "retry-logic"
+            ]
+        ]
+    },
+    {
+        "id": "retry-logic",
+        "type": "function",
+        "z": "erp-flow-1",
+        "name": "Retry Logic (Max 3)",
+        "func": "msg.retries = (msg.retries || 0) + 1;\n\nif (msg.retries <= 3) {\n    node.warn(`ERP API failed. Retrying attempt ${msg.retries}/3 in 10 seconds...`);\n    return [msg, null];\n} else {\n    node.error(\"ERP API failed after 3 retries. Logging to dead-letter queue.\");\n    return [null, msg];\n}",
+        "outputs": 2,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 350,
+        "y": 320,
+        "wires": [
+            [
+                "delay-retry"
+            ],
+            [
+                "log-dead-letter"
+            ]
+        ]
+    },
+    {
+        "id": "delay-retry",
+        "type": "delay",
+        "z": "erp-flow-1",
+        "name": "Wait 10s",
+        "pauseType": "delay",
+        "timeout": "10",
+        "timeoutUnits": "seconds",
+        "rate": "1",
+        "nbRateUnits": "1",
+        "rateUnits": "second",
+        "randomFirst": "1",
+        "randomLast": "5",
+        "randomUnits": "seconds",
+        "drop": false,
+        "allowrate": false,
+        "outputs": 1,
+        "x": 560,
+        "y": 300,
+        "wires": [
+            [
+                "api-inventory-update"
+            ]
+        ]
+    },
+    {
+        "id": "log-dead-letter",
+        "type": "file",
+        "z": "erp-flow-1",
+        "name": "Write to Dead Letter",
+        "filename": "/data/erp-dead-letter-queue.log",
+        "filenameType": "str",
+        "appendNewline": true,
+        "createDir": true,
+        "overwriteFile": "false",
+        "encoding": "none",
+        "x": 610,
+        "y": 340,
+        "wires": [
+            []
+        ]
+    }
+]

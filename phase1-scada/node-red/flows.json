@@ -1,0 +1,254 @@
+[
+    {
+        "id": "f1",
+        "type": "tab",
+        "label": "Factory Automation",
+        "disabled": false,
+        "info": ""
+    },
+    {
+        "id": "modbus-read",
+        "type": "modbus-getter",
+        "z": "f1",
+        "name": "Read PLC Data",
+        "showStatusActivities": false,
+        "showErrors": false,
+        "logIOActivities": false,
+        "unitid": "1",
+        "dataType": "HoldingRegister",
+        "adr": "0",
+        "q": "4",
+        "server": "modbus-server",
+        "useIOFile": false,
+        "ioFile": "",
+        "useIOForPayload": false,
+        "emptyMsgOnFail": false,
+        "keepMsgProperties": false,
+        "x": 180,
+        "y": 120,
+        "wires": [
+            [
+                "format-data"
+            ]
+        ]
+    },
+    {
+        "id": "trigger",
+        "type": "inject",
+        "z": "f1",
+        "name": "Poll every 2s",
+        "props": [
+            {
+                "p": "payload"
+            }
+        ],
+        "repeat": "2",
+        "crontab": "",
+        "once": true,
+        "onceDelay": 0.1,
+        "topic": "",
+        "payload": "",
+        "payloadType": "date",
+        "x": 160,
+        "y": 60,
+        "wires": [
+            [
+                "modbus-read"
+            ]
+        ]
+    },
+    {
+        "id": "format-data",
+        "type": "function",
+        "z": "f1",
+        "name": "Format JSON",
+        "func": "const data = msg.payload;\n\n// Modbus registers:\n// 0: Status (0=stopped, 1=running)\n// 1: Temperature (x10)\n// 2: Cycle Time\n// 3: Production Count\n\nconst statusMap = {0: \"stopped\", 1: \"running\"};\n\nmsg.payload = {\n    \"machine_id\": \"LINE_01\",\n    \"status\": statusMap[data[0]] || \"unknown\",\n    \"temperature\": data[1] / 10.0,\n    \"cycle_time\": data[2],\n    \"production_count\": data[3]\n};\n\nreturn msg;",
+        "outputs": 1,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 370,
+        "y": 120,
+        "wires": [
+            [
+                "http-post",
+                "debug-out",
+                "dash-status",
+                "dash-temp",
+                "dash-count"
+            ]
+        ]
+    },
+    {
+        "id": "http-post",
+        "type": "http request",
+        "z": "f1",
+        "name": "Send to API",
+        "method": "POST",
+        "ret": "json",
+        "paytoqs": "ignore",
+        "url": "http://api-server:3000/api/machine-data",
+        "tls": "",
+        "persist": false,
+        "proxy": "",
+        "authType": "",
+        "senderr": false,
+        "x": 590,
+        "y": 120,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "debug-out",
+        "type": "debug",
+        "z": "f1",
+        "name": "Debug",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "payload",
+        "targetType": "msg",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 570,
+        "y": 60,
+        "wires": []
+    },
+    {
+        "id": "dash-status",
+        "type": "ui_text",
+        "z": "f1",
+        "group": "dash-group-1",
+        "order": 1,
+        "width": 0,
+        "height": 0,
+        "name": "",
+        "label": "Machine Status",
+        "format": "{{msg.payload.status}}",
+        "layout": "row-spread",
+        "className": "",
+        "x": 590,
+        "y": 180,
+        "wires": []
+    },
+    {
+        "id": "dash-temp",
+        "type": "ui_chart",
+        "z": "f1",
+        "name": "",
+        "group": "dash-group-1",
+        "order": 2,
+        "width": 0,
+        "height": 0,
+        "label": "Temperature (°C)",
+        "chartType": "line",
+        "legend": "false",
+        "xformat": "HH:mm:ss",
+        "interpolate": "linear",
+        "nodata": "",
+        "dot": false,
+        "ymin": "0",
+        "ymax": "100",
+        "removeOlder": 1,
+        "removeOlderPoints": "",
+        "removeOlderUnit": "3600",
+        "cutout": 0,
+        "useOneColor": false,
+        "useUTC": false,
+        "colors": [
+            "#1f77b4",
+            "#aec7e8",
+            "#ff7f0e",
+            "#2ca02c",
+            "#98df8a",
+            "#d62728",
+            "#ff9896",
+            "#9467bd",
+            "#c5b0d5"
+        ],
+        "outputs": 1,
+        "useDifferentColor": false,
+        "className": "",
+        "x": 600,
+        "y": 240,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "dash-count",
+        "type": "ui_gauge",
+        "z": "f1",
+        "name": "",
+        "group": "dash-group-1",
+        "order": 3,
+        "width": 0,
+        "height": 0,
+        "gtype": "gage",
+        "title": "Production Count",
+        "label": "units",
+        "format": "{{msg.payload.production_count}}",
+        "min": 0,
+        "max": "10000",
+        "colors": [
+            "#00b500",
+            "#e6e600",
+            "#ca3838"
+        ],
+        "seg1": "",
+        "seg2": "",
+        "className": "",
+        "x": 600,
+        "y": 300,
+        "wires": []
+    },
+    {
+        "id": "modbus-server",
+        "type": "modbus-client",
+        "name": "PLC Simulator",
+        "clienttype": "tcp",
+        "bufferCommands": true,
+        "stateLogEnabled": false,
+        "queueLogEnabled": false,
+        "tcpHost": "plc-simulator",
+        "tcpPort": "5020",
+        "tcpType": "DEFAULT",
+        "serialPort": "/dev/ttyUSB",
+        "serialType": "RTU-BUFFERD",
+        "serialBaudrate": "9600",
+        "serialDatabits": "8",
+        "serialStopbits": "1",
+        "serialParity": "none",
+        "serialConnectionDelay": "100",
+        "serialAsciiResponseStartDelimiter": "0x3A",
+        "unit_id": "1",
+        "commandDelay": "1",
+        "clientTimeout": "1000",
+        "reconnectOnTimeout": true,
+        "reconnectTimeout": "2000",
+        "parallelUnitIdsAllowed": true
+    },
+    {
+        "id": "dash-group-1",
+        "type": "ui_group",
+        "name": "Line 01 Overview",
+        "tab": "dash-tab-1",
+        "order": 1,
+        "disp": true,
+        "width": "6",
+        "collapse": false,
+        "className": ""
+    },
+    {
+        "id": "dash-tab-1",
+        "type": "ui_tab",
+        "name": "Factory Dashboard",
+        "icon": "dashboard",
+        "order": 1,
+        "disabled": false,
+        "hidden": false
+    }
+]

@@ -1,0 +1,33 @@
+version: '3.8'
+
+services:
+  plc-simulator:
+    build: ./plc-simulator
+    ports:
+      - "5020:5020"
+    restart: unless-stopped
+
+  api-server:
+    build: ./api-server
+    ports:
+      - "3000:3000"
+    restart: unless-stopped
+
+  node-red:
+    image: nodered/node-red:latest
+    ports:
+      - "1880:1880"
+    volumes:
+      - node-red-data:/data
+      - ./node-red/flows.json:/data/flows.json
+    environment:
+      - TZ=UTC
+    restart: unless-stopped
+    depends_on:
+      - plc-simulator
+      - api-server
+    command: >
+      bash -c "npm install node-red-contrib-modbus node-red-dashboard && npm start"
+
+volumes:
+  node-red-data:

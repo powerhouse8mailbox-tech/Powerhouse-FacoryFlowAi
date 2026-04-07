@@ -1,0 +1,36 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database for qcadoo
+  mes-db:
+    image: postgres:13
+    environment:
+      POSTGRES_DB: qcadoo
+      POSTGRES_USER: qcadoo
+      POSTGRES_PASSWORD: qcadoo_password
+    volumes:
+      - mes-db-data:/var/lib/postgresql/data
+      - ../database/init.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "5432:5432"
+    restart: unless-stopped
+
+  # qcadoo MES Application
+  # Note: Using a standard Tomcat image as base. In a real deployment, 
+  # you would build an image with the qcadoo WAR file deployed to Tomcat.
+  qcadoo-mes:
+    image: tomcat:9-jdk11
+    environment:
+      - DB_URL=jdbc:postgresql://mes-db:5432/qcadoo
+      - DB_USER=qcadoo
+      - DB_PASSWORD=qcadoo_password
+    ports:
+      - "8080:8080"
+    depends_on:
+      - mes-db
+    restart: unless-stopped
+    # volumes:
+    #   - ./qcadoo-app.war:/usr/local/tomcat/webapps/ROOT.war
+
+volumes:
+  mes-db-data:

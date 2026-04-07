@@ -70,6 +70,7 @@ async function startServer() {
   if (process.env.NODE_ENV !== 'production') {
     const { createServer: createViteServer } = await import('vite');
     const vite = await createViteServer({
+      root: path.join(process.cwd(), 'frontend'),
       server: { middlewareMode: true },
       appType: 'spa',
     });

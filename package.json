@@ -5,8 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "tsx backend/api-gateway/server.ts",
-    "build": "vite build",
-    "preview": "vite preview",
+    "build": "vite build frontend",
+    "preview": "vite preview frontend",
     "start": "tsx backend/api-gateway/server.ts",
     "clean": "rm -rf dist",
     "lint": "tsc --noEmit"
